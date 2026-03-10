@@ -25,4 +25,24 @@ api.interceptors.response.use(
   }
 );
 
+// Payout APIs
+export const getPayoutSummary = () => api.get('/payouts/summary');
+export const getPayoutLedger = (status, page = 1) => api.get('/payouts/ledger', { params: { status, page } });
+export const requestSettlement = () => api.post('/payouts/settle');
+export const getSettlements = () => api.get('/payouts/settlements');
+
+// Analytics APIs
+export const getShopAnalytics = () => api.get('/analytics/shop');
+export const getBikeAnalytics = (bikeId) => api.get(`/analytics/bike/${bikeId}`);
+export const getPlatformAnalytics = () => api.get('/analytics/platform');
+
+// Travel Agent APIs
+export const getAgentDashboard = () => api.get('/travel-agent/dashboard');
+export const generateReferralLink = (bikeId) => api.post('/travel-agent/generate-link', { bike_id: bikeId || null });
+export const getCommissionLedger = (page = 1) => api.get('/travel-agent/commission-ledger', { params: { page } });
+
+// Availability APIs
+export const getBikeAvailability = (bikeId, month, year) => api.get(`/availability/${bikeId}`, { params: { month, year } });
+export const checkBikeAvailability = (bikeId, startDate, endDate) => api.get(`/availability/${bikeId}/check`, { params: { start_date: startDate, end_date: endDate } });
+
 export default api;

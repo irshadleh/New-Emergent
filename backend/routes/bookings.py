@@ -3,6 +3,14 @@ from database import db
 from models import BookingCreate
 from routes.auth import get_current_user
 from adapters import payment_gateway
+from services.booking_engine import (
+    calculate_booking_cost, calculate_penalty, calculate_cancellation_fee,
+    check_availability, get_availability_calendar, atomic_create_booking,
+    atomic_extend_booking, scan_overdue_bookings, validate_status_transition,
+    PLATFORM_COMMISSION_RATE
+)
+from services.notification_engine import dispatch_notification, create_in_app_notification
+from services.payout_engine import create_payout_entry
 import uuid
 from datetime import datetime, timezone, timedelta
 from pymongo import ReturnDocument
@@ -13,32 +21,27 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["bookings"])
 
 
-def calculate_penalty(end_date_str, actual_return_str, daily_rate):
-    """Late return penalty: 2hr grace, then 1.5x daily rate per extra day"""
-    end_date = datetime.fromisoformat(end_date_str)
-    actual_return = datetime.fromisoformat(actual_return_str)
-    if end_date.tzinfo is None:
-        end_date = end_date.replace(tzinfo=timezone.utc)
-    if actual_return.tzinfo is None:
-        actual_return = actual_return.replace(tzinfo=timezone.utc)
-
-    grace_deadline = end_date + timedelta(hours=2)
-    if actual_return <= grace_deadline:
-        return 0
-    extra_hours = (actual_return - end_date).total_seconds() / 3600
-    extra_days = math.ceil(extra_hours / 24)
-    return extra_days * daily_rate * 1.5
+@router.get("/availability/{bike_id}")
+async def bike_availability(bike_id: str, month: int = None, year: int = None):
+    """Get availability calendar for a bike."""
+    if not month or not year:
+        now = datetime.now(timezone.utc)
+        month = month or now.month
+        year = year or now.year
+    return await get_availability_calendar(bike_id, month, year)
 
 
-async def create_notification(user_id, notif_type, title, message, data=None):
-    notif_doc = {
-        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
-        "user_id": user_id, "type": notif_type,
-        "title": title, "message": message,
-        "data": data or {}, "is_read": False,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.notifications.insert_one(notif_doc)
+@router.get("/availability/{bike_id}/check")
+async def check_bike_availability(bike_id: str, start_date: str, end_date: str):
+    """Check if a bike is available for specific dates."""
+    return await check_availability(bike_id, start_date, end_date)
+
+
+@router.post("/bookings/scan-overdue")
+async def trigger_overdue_scan(request: Request):
+    """Admin/background trigger: scan and mark overdue bookings."""
+    count = await scan_overdue_bookings()
+    return {"overdue_marked": count}
 
 
 @router.post("/bookings")
@@ -57,52 +60,27 @@ async def create_booking(data: BookingCreate, request: Request):
         raise HTTPException(status_code=400, detail="End date must be after start date")
 
     total_days = max(1, (end - start).days)
-    daily_rate = bike["daily_rate"]
 
-    if total_days >= 7 and bike.get("weekly_rate"):
-        weeks = total_days // 7
-        remaining = total_days % 7
-        base_amount = (weeks * bike["weekly_rate"]) + (remaining * daily_rate)
-    else:
-        base_amount = total_days * daily_rate
+    # Use service for cost calculation
+    cost = calculate_booking_cost(bike["daily_rate"], bike.get("weekly_rate", 0), total_days)
+    base_amount = cost["base_amount"]
+    daily_rate = bike["daily_rate"]
 
     booking_id = f"booking_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc).isoformat()
 
-    # ATOMIC DOUBLE-BOOKING PREVENTION
-    result = await db.bikes.find_one_and_update(
-        {
-            "bike_id": data.bike_id,
-            "booking_slots": {
-                "$not": {
-                    "$elemMatch": {
-                        "start_date": {"$lt": data.end_date},
-                        "end_date": {"$gt": data.start_date},
-                        "status": {"$in": ["confirmed", "active"]}
-                    }
-                }
-            }
-        },
-        {
-            "$push": {
-                "booking_slots": {
-                    "booking_id": booking_id,
-                    "start_date": data.start_date,
-                    "end_date": data.end_date,
-                    "status": "confirmed"
-                }
-            }
-        },
-        return_document=ReturnDocument.AFTER
-    )
-
-    if result is None:
+    # ATOMIC DOUBLE-BOOKING PREVENTION via service
+    booked = await atomic_create_booking(data.bike_id, data.start_date, data.end_date, booking_id)
+    if not booked:
         raise HTTPException(
             status_code=409,
             detail="Bike is not available for the selected dates"
         )
 
     shop = await db.bike_shops.find_one({"shop_id": bike["shop_id"]}, {"_id": 0, "name": 1, "owner_id": 1})
+
+    # Handle referral tracking
+    referred_by = data.notes if data.notes and data.notes.startswith("REF-") else None
 
     booking_doc = {
         "booking_id": booking_id, "bike_id": data.bike_id,
@@ -114,11 +92,12 @@ async def create_booking(data: BookingCreate, request: Request):
         "base_amount": base_amount, "penalty_amount": 0,
         "extension_amount": 0, "total_amount": base_amount,
         "payment_status": "pending", "notes": data.notes,
+        "referred_by": referred_by,
         "created_at": now, "updated_at": now
     }
     await db.bookings.insert_one(booking_doc)
 
-    # Mock payment
+    # Payment via adapter
     pay_result = await payment_gateway.create_payment(base_amount, "INR", {"booking_id": booking_id})
     await db.payments.insert_one({
         "payment_id": f"pay_{uuid.uuid4().hex[:12]}",
@@ -136,30 +115,18 @@ async def create_booking(data: BookingCreate, request: Request):
         )
         booking_doc["payment_status"] = "paid"
 
-    # Payout ledger
-    commission_rate = 0.10
-    commission = base_amount * commission_rate
-    await db.payout_ledger.insert_one({
-        "payout_id": f"payout_{uuid.uuid4().hex[:12]}",
-        "shop_id": bike["shop_id"], "booking_id": booking_id,
-        "amount": base_amount - commission,
-        "commission_rate": commission_rate,
-        "commission_amount": commission,
-        "status": "pending", "payout_date": None, "created_at": now
-    })
+    # Payout ledger via service
+    await create_payout_entry(bike["shop_id"], booking_id, base_amount)
 
-    # Notifications
-    await create_notification(
-        user["user_id"], "booking_confirmed", "Booking Confirmed!",
-        f"Your {bike['name']} is booked from {data.start_date[:10]} to {data.end_date[:10]}",
-        {"booking_id": booking_id}
-    )
+    # Smart notifications via engine
+    variables = {
+        "bike_name": bike["name"], "start_date": data.start_date[:10],
+        "end_date": data.end_date[:10], "shop_name": shop["name"] if shop else "",
+        "customer_name": user["name"], "total_amount": str(base_amount)
+    }
+    await dispatch_notification(user["user_id"], "booking_confirmed", variables, {"booking_id": booking_id})
     if shop:
-        await create_notification(
-            shop["owner_id"], "new_booking", "New Booking Received!",
-            f"{user['name']} booked {bike['name']} ({data.start_date[:10]} to {data.end_date[:10]})",
-            {"booking_id": booking_id}
-        )
+        await dispatch_notification(shop["owner_id"], "new_booking", variables, {"booking_id": booking_id})
 
     result_doc = {k: v for k, v in booking_doc.items() if k != "_id"}
     return result_doc
@@ -233,7 +200,7 @@ async def update_booking_status(booking_id: str, request: Request):
         "pending": ["confirmed", "cancelled"]
     }
     current = booking["status"]
-    if new_status not in valid_transitions.get(current, []):
+    if not validate_status_transition(current, new_status):
         raise HTTPException(status_code=400, detail=f"Cannot transition from {current} to {new_status}")
 
     now = datetime.now(timezone.utc).isoformat()
@@ -252,7 +219,7 @@ async def update_booking_status(booking_id: str, request: Request):
 
     await db.bookings.update_one({"booking_id": booking_id}, {"$set": update})
 
-    await create_notification(
+    await create_in_app_notification(
         booking["customer_id"], f"booking_{new_status}",
         f"Booking {new_status.replace('_', ' ').title()}",
         f"Your booking #{booking_id[-8:]} is now {new_status}",
@@ -271,7 +238,8 @@ async def return_bike(booking_id: str, request: Request):
         raise HTTPException(status_code=400, detail="Booking cannot be returned in current state")
 
     now = datetime.now(timezone.utc).isoformat()
-    penalty = calculate_penalty(booking["end_date"], now, booking["daily_rate"])
+    penalty_info = calculate_penalty(booking["end_date"], now, booking["daily_rate"])
+    penalty = penalty_info["penalty"]
 
     update = {
         "status": "completed", "actual_return_date": now,
@@ -295,18 +263,20 @@ async def return_bike(booking_id: str, request: Request):
             "status": "completed", "payment_method": "mock_gateway",
             "gateway_reference": pay_result.reference, "created_at": now
         })
-        await create_notification(
-            booking["customer_id"], "penalty_applied", "Late Return Penalty",
-            f"A penalty of {penalty:.0f} INR has been applied",
-            {"booking_id": booking_id, "penalty": penalty}
-        )
+        await dispatch_notification(booking["customer_id"], "penalty_applied", {
+            "penalty_amount": str(penalty), "bike_name": booking.get("bike_name", ""),
+            "extra_days": str(penalty_info.get("extra_days", 0)), "customer_name": ""
+        }, {"booking_id": booking_id, "penalty": penalty})
 
-    await create_notification(
-        booking["customer_id"], "booking_completed", "Ride Complete!",
-        "Thanks for riding! Don't forget to leave a review.",
-        {"booking_id": booking_id}
-    )
-    return {"message": "Bike returned", "penalty": penalty, "total_amount": update["total_amount"]}
+    await dispatch_notification(booking["customer_id"], "booking_completed", {
+        "bike_name": booking.get("bike_name", ""), "customer_name": "",
+        "total_amount": str(update["total_amount"])
+    }, {"booking_id": booking_id})
+    return {
+        "message": "Bike returned", "penalty": penalty,
+        "penalty_details": penalty_info,
+        "total_amount": update["total_amount"]
+    }
 
 
 @router.post("/bookings/{booking_id}/extend")
@@ -323,26 +293,8 @@ async def extend_booking(booking_id: str, request: Request):
     if booking["status"] not in ["confirmed", "active"]:
         raise HTTPException(status_code=400, detail="Cannot extend this booking")
 
-    result = await db.bikes.find_one_and_update(
-        {
-            "bike_id": booking["bike_id"],
-            "booking_slots": {
-                "$not": {
-                    "$elemMatch": {
-                        "booking_id": {"$ne": booking_id},
-                        "start_date": {"$lt": new_end_date},
-                        "end_date": {"$gt": booking["end_date"]},
-                        "status": {"$in": ["confirmed", "active"]}
-                    }
-                }
-            }
-        },
-        {"$set": {"booking_slots.$[elem].end_date": new_end_date}},
-        array_filters=[{"elem.booking_id": booking_id}],
-        return_document=ReturnDocument.AFTER
-    )
-
-    if result is None:
+    extended = await atomic_extend_booking(booking["bike_id"], booking_id, booking["end_date"], new_end_date)
+    if not extended:
         raise HTTPException(status_code=409, detail="Extension dates not available")
 
     old_end = datetime.fromisoformat(booking["end_date"])

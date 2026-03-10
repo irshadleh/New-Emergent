@@ -12,12 +12,12 @@ import { Switch } from '../components/ui/switch';
 import { Separator } from '../components/ui/separator';
 import {
   Store, Bike, Plus, Calendar, TrendingUp, Star, Trash2, Edit,
-  IndianRupee, Users, CheckCircle, Clock, Package
+  IndianRupee, Users, CheckCircle, Clock, Package, Wallet, ArrowDownToLine
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import api from '../lib/api';
+import api, { getPayoutSummary, getPayoutLedger, requestSettlement, getSettlements } from '../lib/api';
 
 function CreateShopForm({ onCreated }) {
   const [loading, setLoading] = useState(false);
@@ -193,6 +193,10 @@ export default function ShopDashboard() {
   const [bikes, setBikes] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [analytics, setAnalytics] = useState(null);
+  const [payoutData, setPayoutData] = useState(null);
+  const [payoutLedgerData, setPayoutLedgerData] = useState([]);
+  const [settlements, setSettlements] = useState([]);
+  const [settleLoading, setSettleLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasShop, setHasShop] = useState(false);
 
@@ -203,12 +207,18 @@ export default function ShopDashboard() {
         setShop(shopRes.data.shop);
         setBikes(shopRes.data.shop.bikes || []);
         setHasShop(true);
-        const [bookRes, analyticsRes] = await Promise.all([
+        const [bookRes, analyticsRes, payoutRes, payoutLedgerRes, settlementsRes] = await Promise.all([
           api.get('/bookings?role=owner'),
-          api.get('/analytics/shop').catch(() => ({ data: null }))
+          api.get('/analytics/shop').catch(() => ({ data: null })),
+          getPayoutSummary().catch(() => ({ data: null })),
+          getPayoutLedger(null, 1).catch(() => ({ data: { entries: [] } })),
+          getSettlements().catch(() => ({ data: { settlements: [] } }))
         ]);
         setBookings(bookRes.data.bookings || []);
         setAnalytics(analyticsRes.data);
+        setPayoutData(payoutRes.data);
+        setPayoutLedgerData(payoutLedgerRes.data.entries || []);
+        setSettlements(settlementsRes.data.settlements || []);
       } else {
         setHasShop(false);
       }
@@ -248,6 +258,18 @@ export default function ShopDashboard() {
     }
   };
 
+  const handleSettlement = async () => {
+    setSettleLoading(true);
+    try {
+      const res = await requestSettlement();
+      toast.success(`Settlement processed: ${res.data.total_amount?.toLocaleString()} INR for ${res.data.payouts_processed} payouts`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Settlement failed');
+    }
+    setSettleLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background pt-20 flex items-center justify-center">
@@ -268,6 +290,8 @@ export default function ShopDashboard() {
   const monthlyData = (analytics?.monthly_revenue || []).map(m => ({
     name: m.month, revenue: m.revenue, bookings: m.bookings
   }));
+  const payoutTotals = payoutData?.totals || {};
+  const pendingPayouts = payoutData?.by_status?.pending || {};
 
   return (
     <div className="min-h-screen bg-background pt-20" data-testid="shop-dashboard">
@@ -310,6 +334,9 @@ export default function ShopDashboard() {
             </TabsTrigger>
             <TabsTrigger value="analytics" className="rounded-sm font-heading uppercase tracking-wider text-xs" data-testid="shop-tab-analytics">
               Analytics
+            </TabsTrigger>
+            <TabsTrigger value="payouts" className="rounded-sm font-heading uppercase tracking-wider text-xs" data-testid="shop-tab-payouts">
+              Payouts
             </TabsTrigger>
           </TabsList>
 
@@ -421,6 +448,20 @@ export default function ShopDashboard() {
                 </div>
               )}
 
+              {/* Top Performing Bike */}
+              {analytics?.top_performing_bike && (
+                <div className="bg-card border border-primary/20 rounded-sm p-5" data-testid="top-bike">
+                  <h3 className="font-heading font-bold text-sm uppercase tracking-wider mb-3">Top Performing Bike</h3>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-heading font-bold text-base">{analytics.top_performing_bike.name}</p>
+                      <p className="text-xs text-muted-foreground">{analytics.top_performing_bike.bookings} bookings</p>
+                    </div>
+                    <p className="font-heading font-bold text-xl text-primary">{analytics.top_performing_bike.revenue?.toLocaleString()} INR</p>
+                  </div>
+                </div>
+              )}
+
               {/* Bike Utilization */}
               {analytics?.bike_utilization?.length > 0 && (
                 <div className="bg-card border border-border/50 rounded-sm p-6" data-testid="utilization-table">
@@ -433,6 +474,103 @@ export default function ShopDashboard() {
                           <span>{b.active_bookings} active</span>
                           <span>{b.completed_bookings} completed</span>
                           <span className="font-bold text-foreground">{b.total_bookings} total</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Payouts Tab */}
+          <TabsContent value="payouts">
+            <div className="space-y-6">
+              {/* Payout Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-card border border-border/50 rounded-sm p-4">
+                  <IndianRupee className="w-4 h-4 text-primary mb-2" strokeWidth={1.5} />
+                  <p className="font-heading font-bold text-xl text-foreground">{(payoutTotals.gross_revenue || 0).toLocaleString()}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Gross Revenue</p>
+                </div>
+                <div className="bg-card border border-border/50 rounded-sm p-4">
+                  <Wallet className="w-4 h-4 text-accent mb-2" strokeWidth={1.5} />
+                  <p className="font-heading font-bold text-xl text-foreground">{(payoutTotals.net_payable || 0).toLocaleString()}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Net Payable</p>
+                </div>
+                <div className="bg-card border border-border/50 rounded-sm p-4">
+                  <TrendingUp className="w-4 h-4 text-destructive mb-2" strokeWidth={1.5} />
+                  <p className="font-heading font-bold text-xl text-foreground">{(payoutTotals.commission_paid || 0).toLocaleString()}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Platform Fee</p>
+                </div>
+                <div className="bg-card border border-border/50 rounded-sm p-4">
+                  <Clock className="w-4 h-4 text-chart-3 mb-2" strokeWidth={1.5} />
+                  <p className="font-heading font-bold text-xl text-foreground">{(pendingPayouts.net_amount || 0).toLocaleString()}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Pending Payout</p>
+                </div>
+              </div>
+
+              {/* Settlement Action */}
+              {(pendingPayouts.count || 0) > 0 && (
+                <div className="bg-card border border-primary/30 rounded-sm p-5 flex items-center justify-between" data-testid="settlement-action">
+                  <div>
+                    <p className="font-heading font-bold text-sm uppercase">Ready for Settlement</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {pendingPayouts.count} pending payout{pendingPayouts.count !== 1 ? 's' : ''} worth {(pendingPayouts.net_amount || 0).toLocaleString()} INR
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleSettlement}
+                    disabled={settleLoading}
+                    className="bg-primary text-primary-foreground font-bold uppercase tracking-wider text-xs rounded-sm"
+                    data-testid="request-settlement-btn"
+                  >
+                    <ArrowDownToLine className="w-4 h-4 mr-1" />
+                    {settleLoading ? 'Processing...' : 'Request Settlement'}
+                  </Button>
+                </div>
+              )}
+
+              {/* Payout Ledger */}
+              <div className="bg-card border border-border/50 rounded-sm p-5" data-testid="payout-ledger">
+                <h3 className="font-heading font-bold text-sm uppercase tracking-wider mb-4">Payout Ledger</h3>
+                {payoutLedgerData.length === 0 ? (
+                  <p className="text-center text-muted-foreground text-sm py-8">No payout entries yet. Complete bookings to see payouts here.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {payoutLedgerData.map(entry => (
+                      <div key={entry.payout_id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-border/30 last:border-0 gap-2" data-testid={`payout-entry-${entry.payout_id}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold">{entry.bike_name || 'Booking'}</p>
+                          <p className="text-xs text-muted-foreground">{entry.customer_name} {entry.booking_dates ? `| ${entry.booking_dates}` : ''}</p>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs flex-shrink-0">
+                          <span className={`inline-flex px-2 py-0.5 rounded-sm text-[9px] uppercase tracking-widest font-bold ${entry.status === 'processed' ? 'status-completed' : entry.status === 'pending' ? 'status-confirmed' : 'status-active'}`}>
+                            {entry.status}
+                          </span>
+                          <span className="text-muted-foreground">-{(entry.commission_amount || 0).toLocaleString()} fee</span>
+                          <span className="font-bold text-primary">{(entry.amount || 0).toLocaleString()} INR</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Past Settlements */}
+              {settlements.length > 0 && (
+                <div className="bg-card border border-border/50 rounded-sm p-5" data-testid="past-settlements">
+                  <h3 className="font-heading font-bold text-sm uppercase tracking-wider mb-4">Past Settlements</h3>
+                  <div className="space-y-2">
+                    {settlements.map(s => (
+                      <div key={s.settlement_id} className="flex items-center justify-between py-3 border-b border-border/30 last:border-0">
+                        <div>
+                          <p className="text-sm font-bold">{s.settlement_id}</p>
+                          <p className="text-xs text-muted-foreground">{s.created_at?.slice(0, 10)} | {s.payout_ids?.length || 0} payouts</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-primary">{(s.total_amount || 0).toLocaleString()} INR</p>
+                          <p className="text-[10px] text-muted-foreground">Fee: {(s.total_commission || 0).toLocaleString()}</p>
                         </div>
                       </div>
                     ))}

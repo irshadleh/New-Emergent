@@ -10,6 +10,7 @@ import Marketplace from "./pages/Marketplace";
 import BikeDetail from "./pages/BikeDetail";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import ShopDashboard from "./pages/ShopDashboard";
+import TravelAgentDashboard from "./pages/TravelAgentDashboard";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -47,6 +48,9 @@ function AppRouter() {
         } />
         <Route path="/shop" element={
           <ProtectedRoute><ShopDashboard /></ProtectedRoute>
+        } />
+        <Route path="/travel-agent" element={
+          <ProtectedRoute><TravelAgentDashboard /></ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

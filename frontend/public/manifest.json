@@ -1,0 +1,27 @@
+{
+  "short_name": "Ladakh Moto",
+  "name": "Ladakh Moto Market - Bike Rental",
+  "description": "Rent premium motorcycles from verified local shops in Ladakh. Explore Khardung La, Pangong Lake, and Nubra Valley.",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2309090b'/><text x='50' y='55' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-weight='bold' font-size='40' fill='%23eab308'>LM</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2309090b'/><text x='50' y='55' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-weight='bold' font-size='40' fill='%23eab308'>LM</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#09090b",
+  "background_color": "#09090b",
+  "orientation": "portrait-primary",
+  "categories": ["travel", "transportation"],
+  "scope": "/",
+  "lang": "en"
+}
