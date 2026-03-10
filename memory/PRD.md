@@ -1,104 +1,69 @@
 # Ladakh Moto Market - PRD
 
 ## Original Problem Statement
-Build a production-grade bike rental marketplace platform based out of Ladakh supporting three user roles: Customers, Bike Shop Owners, and Travel Agency/Hotel Owners, plus an Admin role for platform management.
-
-Architecture: Mobile Apps -> API Gateway -> Backend Services -> Database + Object Storage -> Admin Dashboard + Analytics.
-
-## Core Requirements
-- **Backend Services**: Authentication, Marketplace, Booking, Payments, Notifications, Analytics, Admin Management
-- **Database Schema**: Users, BikeShops, Bikes, Bookings, Payments, PayoutLedger, Reviews, Notifications, Settlements
-- **Operational Features**: Double booking prevention, late return penalties, availability calendar, smart notifications, rating system, bike performance analytics, payout ledger
-- **Integrations**: Mock implementations for Payment, KYC, SMS/Email/Push, Maps, IoT (adapter pattern)
-- **Scalability**: 50K+ users
-- **Mobile**: PWA approach with future native wrapper support
+Build a production-grade bike rental marketplace platform based out of Ladakh supporting Customer, Bike Shop Owner, Travel Agent, and Admin roles.
 
 ## Tech Stack
-- **Backend**: FastAPI, MongoDB (motor), Pydantic, JWT + Google OAuth
-- **Frontend**: React, React Router, TailwindCSS, shadcn/ui, Recharts
-- **Architecture**: Service-Oriented (services layer + adapter pattern), REST APIs, Background Tasks
+- **Backend**: FastAPI, MongoDB (motor), Pydantic, JWT + Google OAuth, Resend (email)
+- **Frontend**: React, React Router, TailwindCSS, shadcn/ui, Recharts, PWA
+- **Architecture**: Service-Oriented (services + adapter pattern), REST APIs, Background Tasks
 
 ## What's Been Implemented
 
-### Phase 1: MVP (Complete)
-- Full-stack MVP with auth, marketplace, booking, reviews
-- Database schema with indexes for 50K+ scale
-- Seed data (2 shops, 8 bikes)
-
-### Phase 2: Production Refactor (Complete)
-- Service layer: booking_engine, analytics_engine, payout_engine, notification_engine, rating_engine
-- Adapter layer: payment, notification, kyc, maps, iot (all mocked)
-- New routes: payouts, travel_agents, enhanced analytics
-- Background scheduler for overdue bookings + notification reminders
-
-### Phase 3: Frontend Integration (Complete - Feb 2026)
-- Updated api.js with all new endpoint functions
-- TravelAgentDashboard: referral tracking, booking tracking, customer management, earnings analytics, commission ledger
-- ShopDashboard: added Payouts tab (summary, ledger, settlements), enhanced analytics
-- App.js: added /travel-agent route
-- Navbar: role-conditional navigation
-- PWA support: manifest.json, service-worker.js, mobile meta tags
+### Phase 1-3: MVP, Refactor, Frontend (Complete)
+- Full auth (JWT + Google OAuth), marketplace with bike search/filter, booking engine
+- Service layer (booking, analytics, payout, notification, rating engines)
+- Adapter layer (payment, notification, kyc, maps, iot - all mocked)
+- Customer, Shop Owner, Travel Agent dashboards fully integrated
+- PWA support (manifest, service worker)
 
 ### Phase 4: Admin Dashboard + User Features (Complete - Mar 2026)
-- **Admin Dashboard** (`/admin` route):
-  - Overview tab: Platform metrics (users, shops, bikes, bookings, revenue, commission), pending KYC/payouts, revenue trends line chart, booking status pie chart, top shops bar chart, recent bookings
-  - Users tab: Searchable/filterable user table, manage dialog (change role, KYC status, suspend/unsuspend)
-  - Payouts tab: Summary cards, payout entries list with settle action per shop
-  - KYC tab: Filterable KYC table, approve/reject with notes
-  - Admin role guard (403 for non-admin users)
-- **Rating System UI**: Review dialog on completed bookings with star rating + comment, "Rate Ride" button on BookingCard
-- **Enhanced Booking Flow**: Payment confirmation panel in BikeDetail with full booking summary before "Confirm & Pay"
-- Backend: `/api/admin/` routes (dashboard, users, payouts, kyc)
-- Navbar: Admin link for admin role users, Admin Panel in dropdown
+- Admin Dashboard with Overview, Users, Payouts, KYC tabs
+- Rating/Review UI for customers on completed bookings
+- Enhanced booking flow with payment confirmation step
 
-### Testing Status (Mar 2026)
-- Backend: 27/29 admin tests passing (93%, 2 skipped due to fixtures)
-- Frontend: 100% - all admin tabs, booking flow, customer dashboard verified
-- Previous E2E: 36/36 backend, all role flows passing
+### Phase 5: Onboarding & Application System (Complete - Mar 2026)
+- **Admin Access**: `irshadxat@gmail.com` / `admin123` mapped as platform admin
+- **Smart Login Redirects**: admin→/admin, shop_owner→/shop, travel_agent→/travel-agent, customer→/dashboard
+- **Shop Owner Onboarding**: Landing "Start Listing" → /apply?type=shop_owner → form (name, email, phone, shop name, address, bikes, types, experience) → admin approves → auto-creates user + shop with random password → email via Resend → first login forced password change
+- **Travel Agent Onboarding**: Landing "Register as Travel Agent" → /apply?type=travel_agent → form (name, email, phone, agency name/type/address) → same admin approval flow
+- **Admin Applications Tab**: Lists all applications with Type column (Shop Owner / Travel Agent), approve/reject with notes, shows generated password on approval
+- **Password Change Dialog**: Modal on first login for approved users, cannot dismiss until password changed
+- **Resend Email**: Real integration (test mode limited to verified emails, password shown in admin UI as fallback)
+- **Backend**: /api/applications (submit, list, approve, reject), /api/auth/change-password
 
-## API Endpoints
+### Testing (Mar 2026)
+- iteration_3.json: Admin dashboard, reviews, booking flow — 93% backend, 100% frontend
+- iteration_4.json: Onboarding, applications, redirects, password change — 100% backend (23/23), 100% frontend (18/18)
+
+## Key API Endpoints
 | Endpoint | Method | Auth | Description |
 |---|---|---|---|
-| /api/auth/register | POST | No | Register user |
-| /api/auth/login | POST | No | Login |
-| /api/auth/session | POST | No | OAuth session exchange |
-| /api/auth/me | GET | Yes | Get current user |
-| /api/bikes | GET/POST | No/Yes | List/Create bikes |
-| /api/bikes/{id} | GET/PUT/DELETE | No/Yes/Yes | Bike CRUD |
-| /api/shops | GET/POST | No/Yes | List/Create shops |
-| /api/bookings | GET/POST | Yes | List/Create bookings |
-| /api/bookings/{id}/status | PUT | Yes | Update booking status |
-| /api/bookings/{id}/return | POST | Yes | Return bike |
-| /api/bookings/{id}/extend | POST | Yes | Extend booking |
-| /api/availability/{bike_id} | GET | No | Availability calendar |
-| /api/analytics/shop | GET | Yes | Shop analytics |
-| /api/analytics/bike/{id} | GET | Yes | Bike performance |
-| /api/analytics/platform | GET | Yes | Platform analytics |
-| /api/payouts/summary | GET | Yes | Payout summary |
-| /api/payouts/ledger | GET | Yes | Payout ledger |
-| /api/payouts/settle | POST | Yes | Request settlement |
-| /api/travel-agent/dashboard | GET | Yes | Agent dashboard |
-| /api/travel-agent/generate-link | POST | Yes | Generate referral link |
-| /api/travel-agent/commission-ledger | GET | Yes | Commission ledger |
-| /api/notifications | GET | Yes | List notifications |
+| /api/auth/register, /login, /me, /logout | Various | Various | Auth |
+| /api/auth/change-password | POST | Yes | Change password (first-login) |
+| /api/bikes, /api/shops | GET/POST | Various | CRUD |
+| /api/bookings | GET/POST | Yes | Booking management |
 | /api/reviews | POST | Yes | Submit review |
-| /api/admin/dashboard | GET | Admin | Platform dashboard |
-| /api/admin/users | GET | Admin | List users |
-| /api/admin/users/{id} | PUT | Admin | Update user |
-| /api/admin/payouts | GET | Admin | List all payouts |
-| /api/admin/payouts/{shop_id}/settle | POST | Admin | Settle shop payouts |
-| /api/admin/kyc | GET | Admin | List KYC submissions |
-| /api/admin/kyc/{user_id}/review | POST | Admin | Review KYC |
+| /api/admin/dashboard, /users, /payouts, /kyc | Various | Admin | Admin management |
+| /api/applications/submit | POST | No | Public application submission |
+| /api/applications | GET | Admin | List applications |
+| /api/applications/{id}/approve | POST | Admin | Approve + create user |
+| /api/applications/{id}/reject | POST | Admin | Reject application |
 
 ## Prioritized Backlog
 
 ### P0 (Next)
-- Mobile-responsive optimization and PWA enhancements
+- Mobile-responsive optimization
 
 ### P1
-- UI/UX polish and theming refinements
-- ESLint configuration setup
+- UI/UX polish pass
+- ESLint configuration
 
 ### P2
-- Replace mock integrations with real providers (Stripe, SMS, etc.)
-- React Native / Capacitor wrapper for native app store distribution
+- Replace remaining mock integrations (Stripe, Twilio)
+- Verify Resend domain for production email delivery
+- React Native / Capacitor wrapper
+
+## Credentials
+- Admin: irshadxat@gmail.com / admin123
+- Test Shop Owner: tenzin@himalayabikes.com / newpass123

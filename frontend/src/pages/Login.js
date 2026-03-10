@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -26,8 +26,7 @@ export default function Login() {
 
   // Redirect if already logged in
   if (user) {
-    navigate(getRedirectPath(user.role), { replace: true });
-    return null;
+    return <Navigate to={getRedirectPath(user.role)} replace />;
   }
 
   const handleLogin = async (e) => {
