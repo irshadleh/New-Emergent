@@ -10,6 +10,7 @@ from routes.analytics import router as analytics_router
 from routes.payouts import router as payouts_router
 from routes.travel_agents import router as travel_agent_router
 from routes.admin import router as admin_router
+from routes.applications import router as applications_router
 from services.booking_engine import scan_overdue_bookings
 from services.notification_engine import scan_and_send_reminders
 import os
@@ -30,6 +31,7 @@ app.include_router(analytics_router)
 app.include_router(payouts_router)
 app.include_router(travel_agent_router)
 app.include_router(admin_router)
+app.include_router(applications_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -222,6 +224,38 @@ async def seed_database():
     logger.info(f"Seeded {len(shops)} shops and {len(SEED_BIKES)} bikes")
 
 
+async def seed_admin():
+    """Ensure admin user exists."""
+    admin_email = "irshadxat@gmail.com"
+    existing = await db.users.find_one({"email": admin_email}, {"_id": 0})
+    if existing:
+        if existing.get("role") != "admin":
+            await db.users.update_one(
+                {"email": admin_email},
+                {"$set": {"role": "admin", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            logger.info(f"Updated {admin_email} to admin role")
+        return
+
+    import bcrypt
+    hashed = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.insert_one({
+        "user_id": f"user_{uuid.uuid4().hex[:12]}",
+        "email": admin_email,
+        "name": "Irshad (Admin)",
+        "password_hash": hashed,
+        "role": "admin",
+        "phone": "",
+        "profile_picture": "",
+        "kyc_status": "approved",
+        "must_change_password": False,
+        "created_at": now,
+        "updated_at": now,
+    })
+    logger.info(f"Admin user created: {admin_email}")
+
+
 @app.on_event("startup")
 async def startup():
     global _background_task
@@ -285,6 +319,12 @@ async def startup():
 
     logger.info("Database indexes created (50K+ user scale)")
     await seed_database()
+    await seed_admin()
+
+    # Application indexes
+    await db.applications.create_index("application_id", unique=True)
+    await db.applications.create_index([("status", 1), ("application_type", 1)])
+    await db.applications.create_index("email")
 
     # Start background scheduler
     _background_task = asyncio.create_task(background_scheduler())

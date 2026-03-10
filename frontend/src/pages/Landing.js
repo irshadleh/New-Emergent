@@ -143,7 +143,7 @@ export default function Landing() {
         </section>
       )}
 
-      {/* CTA Section */}
+      {/* CTA Section — Shop Owners */}
       <section className="py-24 md:py-32 px-6 md:px-12 lg:px-24 relative overflow-hidden" data-testid="cta-section">
         <div className="absolute inset-0">
           <img
@@ -161,11 +161,32 @@ export default function Landing() {
             List your fleet, manage bookings, and track revenue. Join the marketplace that tourists trust.
           </p>
           <Button
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/apply?type=shop_owner')}
             className="mt-8 bg-primary text-primary-foreground hover:bg-primary/90 font-bold uppercase tracking-wider px-10 py-6 rounded-sm text-sm"
             data-testid="cta-list-bikes-btn"
           >
             Start Listing <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      </section>
+
+      {/* CTA Section — Travel Agents */}
+      <section className="py-16 md:py-20 px-6 md:px-12 lg:px-24 border-t border-border/30" data-testid="cta-agent-section">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="uppercase tracking-widest text-xs font-bold text-chart-3 mb-3">For Travel Agents & Hotels</p>
+          <h2 className="font-heading font-bold text-xl sm:text-2xl uppercase tracking-tight text-foreground">
+            Earn commissions by referring riders
+          </h2>
+          <p className="mt-3 text-sm text-muted-foreground font-body max-w-md mx-auto">
+            Partner with us and earn on every booking. Hotels, tour operators, and travel agencies welcome.
+          </p>
+          <Button
+            onClick={() => navigate('/apply?type=travel_agent')}
+            variant="outline"
+            className="mt-6 border-chart-3 text-chart-3 hover:bg-chart-3/10 font-bold uppercase tracking-wider px-8 py-5 rounded-sm text-sm"
+            data-testid="cta-agent-register-btn"
+          >
+            Register as Travel Agent <ChevronRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
       </section>

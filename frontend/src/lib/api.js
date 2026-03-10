@@ -57,4 +57,13 @@ export const adminSettleShop = (shopId) => api.post(`/admin/payouts/${shopId}/se
 export const getAdminKyc = (params) => api.get('/admin/kyc', { params });
 export const reviewKyc = (userId, status, notes) => api.post(`/admin/kyc/${userId}/review`, { status, notes });
 
+// Application APIs
+export const submitApplication = (data) => api.post('/applications/submit', data);
+export const getApplications = (params) => api.get('/applications', { params });
+export const approveApplication = (appId) => api.post(`/applications/${appId}/approve`);
+export const rejectApplication = (appId, reason) => api.post(`/applications/${appId}/reject`, { reason });
+
+// Auth extras
+export const changePassword = (newPassword) => api.post('/auth/change-password', { new_password: newPassword });
+
 export default api;

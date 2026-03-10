@@ -15,9 +15,18 @@ export default function Login() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
+  const getRedirectPath = (role) => {
+    switch (role) {
+      case 'admin': return '/admin';
+      case 'shop_owner': return '/shop';
+      case 'travel_agent': return '/travel-agent';
+      default: return '/dashboard';
+    }
+  };
+
   // Redirect if already logged in
   if (user) {
-    navigate('/dashboard', { replace: true });
+    navigate(getRedirectPath(user.role), { replace: true });
     return null;
   }
 
@@ -32,7 +41,7 @@ export default function Login() {
       });
       login(res.data.user, res.data.token);
       toast.success('Welcome back!');
-      navigate('/dashboard', { replace: true });
+      navigate(getRedirectPath(res.data.user.role), { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Login failed');
     } finally {
@@ -54,7 +63,7 @@ export default function Login() {
       });
       login(res.data.user, res.data.token);
       toast.success('Account created!');
-      navigate('/dashboard', { replace: true });
+      navigate(getRedirectPath(res.data.user.role), { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Registration failed');
     } finally {

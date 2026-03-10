@@ -12,7 +12,7 @@ import { Separator } from '../components/ui/separator';
 import {
   LayoutDashboard, Users, Wallet, Shield, Search, TrendingUp,
   IndianRupee, Bike, Store, Calendar, ArrowDownToLine, CheckCircle,
-  XCircle, ChevronLeft, ChevronRight, Eye
+  XCircle, ChevronLeft, ChevronRight, Eye, ClipboardList, Compass, Copy
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
@@ -22,7 +22,8 @@ import {
 } from 'recharts';
 import {
   getAdminDashboard, getAdminUsers, updateAdminUser,
-  getAdminPayouts, adminSettleShop, getAdminKyc, reviewKyc
+  getAdminPayouts, adminSettleShop, getAdminKyc, reviewKyc,
+  getApplications, approveApplication, rejectApplication
 } from '../lib/api';
 
 const CHART_COLORS = ['#eab308', '#0ea5e9', '#22c55e', '#ef4444', '#a855f7'];
@@ -571,6 +572,225 @@ function KycTab() {
   );
 }
 
+function ApplicationsTab() {
+  const [apps, setApps] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState('pending');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [rejectDialog, setRejectDialog] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [approvedCreds, setApprovedCreds] = useState(null);
+
+  const fetchApps = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = { page, limit: 20 };
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (typeFilter !== 'all') params.application_type = typeFilter;
+      const res = await getApplications(params);
+      setApps(res.data.applications || []);
+      setTotal(res.data.total || 0);
+    } catch {}
+    setLoading(false);
+  }, [page, statusFilter, typeFilter]);
+
+  useEffect(() => { fetchApps(); }, [fetchApps]);
+
+  const handleApprove = async (appId) => {
+    try {
+      const res = await approveApplication(appId);
+      setApprovedCreds({
+        email_sent: res.data.email_sent,
+        password: res.data.generated_password,
+        user_id: res.data.user_id,
+      });
+      toast.success('Application approved! User account created.');
+      fetchApps();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Approval failed');
+    }
+  };
+
+  const handleReject = async (appId) => {
+    try {
+      await rejectApplication(appId, rejectReason);
+      toast.success('Application rejected');
+      setRejectDialog(null);
+      setRejectReason('');
+      fetchApps();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Rejection failed');
+    }
+  };
+
+  const typeBadge = (type) => {
+    if (type === 'shop_owner') return <span className="inline-flex px-2 py-0.5 rounded-sm text-[9px] uppercase tracking-widest font-bold bg-primary/20 text-primary">Shop Owner</span>;
+    return <span className="inline-flex px-2 py-0.5 rounded-sm text-[9px] uppercase tracking-widest font-bold bg-chart-3/20 text-chart-3">Travel Agent</span>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row gap-3">
+        <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-full md:w-44 bg-background border-border rounded-none h-11" data-testid="admin-app-status-filter">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-950 border-zinc-800 rounded-sm">
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={v => { setTypeFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-full md:w-52 bg-background border-border rounded-none h-11" data-testid="admin-app-type-filter">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-950 border-zinc-800 rounded-sm">
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="shop_owner">Shop Owner</SelectItem>
+            <SelectItem value="travel_agent">Travel Agent</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground self-center">{total} applications</span>
+      </div>
+
+      <div className="bg-card border border-border/50 rounded-sm" data-testid="admin-applications-table">
+        {loading ? (
+          <div className="p-5 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 bg-secondary rounded animate-pulse" />)}
+          </div>
+        ) : apps.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">No applications found</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50 bg-secondary/30">
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Applicant</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Type</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Details</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Date</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Status</th>
+                  <th className="px-4 py-3 text-right text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {apps.map(app => (
+                  <tr key={app.application_id} className="border-b border-border/30 hover:bg-secondary/10 transition-colors" data-testid={`app-row-${app.application_id}`}>
+                    <td className="px-4 py-3">
+                      <p className="font-bold text-foreground">{app.name}</p>
+                      <p className="text-xs text-muted-foreground">{app.email}</p>
+                      <p className="text-xs text-muted-foreground">{app.phone}</p>
+                    </td>
+                    <td className="px-4 py-3">{typeBadge(app.application_type)}</td>
+                    <td className="px-4 py-3">
+                      {app.application_type === 'shop_owner' ? (
+                        <div>
+                          <p className="text-xs font-bold">{app.shop_name}</p>
+                          <p className="text-xs text-muted-foreground">{app.shop_address}</p>
+                          <p className="text-xs text-muted-foreground">{app.total_bikes} bikes | {app.experience_years}yr exp</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-bold">{app.agency_name}</p>
+                          <p className="text-xs text-muted-foreground">{app.agency_type}</p>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{app.created_at?.slice(0, 10)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-sm text-[9px] uppercase tracking-widest font-bold ${app.status === 'approved' ? 'status-completed' : app.status === 'rejected' ? 'status-cancelled' : 'status-confirmed'}`}>
+                        {app.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {app.status === 'pending' ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" className="bg-chart-3 text-white text-xs h-7 px-2 rounded-sm"
+                            onClick={() => handleApprove(app.application_id)}
+                            data-testid={`approve-app-${app.application_id}`}>
+                            <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-destructive text-xs h-7 px-2"
+                            onClick={() => setRejectDialog(app)}
+                            data-testid={`reject-app-btn-${app.application_id}`}>
+                            <XCircle className="w-3 h-3 mr-1" /> Reject
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{app.status === 'approved' ? 'Approved' : 'Rejected'}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Pagination page={page} total={total} limit={20} onPageChange={setPage} />
+      </div>
+
+      {/* Reject dialog */}
+      <Dialog open={!!rejectDialog} onOpenChange={(open) => !open && setRejectDialog(null)}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 rounded-sm max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading font-bold uppercase tracking-tight">Reject Application</DialogTitle>
+          </DialogHeader>
+          {rejectDialog && (
+            <div className="space-y-4 mt-2">
+              <p className="text-sm"><strong>{rejectDialog.name}</strong> ({rejectDialog.email})</p>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground block mb-1">Rejection Reason</label>
+                <Textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Provide a reason..."
+                  className="bg-background border-border rounded-none" rows={3} data-testid="app-reject-notes" />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" className="flex-1 text-xs" onClick={() => setRejectDialog(null)}>Cancel</Button>
+                <Button className="flex-1 bg-destructive text-white text-xs" onClick={() => handleReject(rejectDialog.application_id)} data-testid="app-reject-confirm">
+                  Reject
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Approved credentials dialog */}
+      <Dialog open={!!approvedCreds} onOpenChange={(open) => !open && setApprovedCreds(null)}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 rounded-sm max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading font-bold uppercase tracking-tight text-chart-3">Application Approved</DialogTitle>
+          </DialogHeader>
+          {approvedCreds && (
+            <div className="space-y-4 mt-2">
+              <p className="text-sm text-muted-foreground">
+                {approvedCreds.email_sent
+                  ? 'Login credentials have been emailed to the applicant.'
+                  : 'Email delivery failed. Please share credentials manually:'}
+              </p>
+              <div className="bg-secondary/50 p-4 rounded-sm border border-border/50">
+                <p className="text-sm"><strong>Generated Password:</strong></p>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="text-primary font-mono text-base bg-background px-3 py-1 border border-border/50 rounded-sm">{approvedCreds.password}</code>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                    onClick={() => { navigator.clipboard.writeText(approvedCreds.password); toast.success('Copied!'); }}
+                    data-testid="copy-password-btn">
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+              <Button className="w-full text-xs" variant="ghost" onClick={() => setApprovedCreds(null)}>Close</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -613,9 +833,12 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="bg-secondary rounded-sm mb-6">
+          <TabsList className="bg-secondary rounded-sm mb-6 flex-wrap">
             <TabsTrigger value="overview" className="rounded-sm font-heading uppercase tracking-wider text-xs" data-testid="admin-tab-overview">
               <LayoutDashboard className="w-3.5 h-3.5 mr-1.5" /> Overview
+            </TabsTrigger>
+            <TabsTrigger value="applications" className="rounded-sm font-heading uppercase tracking-wider text-xs" data-testid="admin-tab-applications">
+              <ClipboardList className="w-3.5 h-3.5 mr-1.5" /> Applications
             </TabsTrigger>
             <TabsTrigger value="users" className="rounded-sm font-heading uppercase tracking-wider text-xs" data-testid="admin-tab-users">
               <Users className="w-3.5 h-3.5 mr-1.5" /> Users
@@ -630,6 +853,9 @@ export default function AdminDashboard() {
 
           <TabsContent value="overview">
             <OverviewTab data={dashboardData} />
+          </TabsContent>
+          <TabsContent value="applications">
+            <ApplicationsTab />
           </TabsContent>
           <TabsContent value="users">
             <UsersTab />

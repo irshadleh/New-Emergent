@@ -3,9 +3,11 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-route
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Toaster } from "./components/ui/sonner";
 import Navbar from "./components/Navbar";
+import PasswordChangeDialog from "./components/PasswordChangeDialog";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
+import Apply from "./pages/Apply";
 import Marketplace from "./pages/Marketplace";
 import BikeDetail from "./pages/BikeDetail";
 import CustomerDashboard from "./pages/CustomerDashboard";
@@ -30,6 +32,7 @@ function ProtectedRoute({ children }) {
 
 function AppRouter() {
   const location = useLocation();
+  const { user, refreshUser } = useAuth();
 
   // Check URL fragment for session_id synchronously during render
   if (location.hash?.includes('session_id=')) {
@@ -42,6 +45,7 @@ function AppRouter() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/apply" element={<Apply />} />
         <Route path="/marketplace" element={<Marketplace />} />
         <Route path="/bikes/:id" element={<BikeDetail />} />
         <Route path="/dashboard" element={
@@ -58,6 +62,11 @@ function AppRouter() {
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
+      {/* Force password change dialog */}
+      {user?.must_change_password && (
+        <PasswordChangeDialog open={true} onComplete={refreshUser} />
+      )}
     </>
   );
 }

@@ -37,6 +37,7 @@ def sanitize_user(user):
         "phone": user.get("phone", ""),
         "profile_picture": user.get("profile_picture", ""),
         "kyc_status": user.get("kyc_status", "pending"),
+        "must_change_password": user.get("must_change_password", False),
         "created_at": user.get("created_at", "")
     }
 
@@ -231,3 +232,24 @@ async def logout(request: Request, response: Response):
         await db.user_sessions.delete_one({"session_token": session_token})
         response.delete_cookie("session_token", path="/", samesite="none", secure=True)
     return {"message": "Logged out"}
+
+
+@router.post("/change-password")
+async def change_password(request: Request):
+    """Change password (used for first-login forced password change)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    new_password = body.get("new_password")
+    if not new_password or len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {
+            "password_hash": hashed,
+            "must_change_password": False,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    return {"message": "Password changed successfully"}
