@@ -1,73 +1,86 @@
-# Ladakh Moto Market - Product Requirements Document
+# Ladakh Moto Market - PRD
 
 ## Original Problem Statement
-Production-grade bike rental marketplace platform based in Ladakh supporting three roles: Customers, Bike Shop Owners, Travel Agency/Hotel Owners. Architecture includes Authentication, Marketplace, Booking (with double-booking prevention), Payment (mock), Notification, and Analytics services with integration adapters for payment, KYC, SMS, email, push, maps, and IoT smart locks in mock mode.
+Build a production-grade bike rental marketplace platform based out of Ladakh supporting three user roles: Customers, Bike Shop Owners, and Travel Agency/Hotel Owners.
 
-## User Personas
-- **Adventure Tourist (25-45)**: Renting bikes for Ladakh road trips (Khardung La, Pangong, Nubra)
-- **Bike Shop Owner**: Local Leh/Ladakh shop listing fleet and managing bookings
-- **Travel Agent/Hotel Owner**: Referring customers, earning commission (Phase 2)
+Architecture: Mobile Apps → API Gateway → Backend Services → Database + Object Storage → Admin Dashboard + Analytics.
 
 ## Core Requirements
-- [x] JWT + Google OAuth authentication
-- [x] Bike marketplace with search/filter (type, location, brand, price)
-- [x] Atomic double-booking prevention using MongoDB findOneAndUpdate
-- [x] Booking lifecycle management (confirmed -> active -> completed)
-- [x] Late return penalty calculation (2hr grace, 1.5x daily rate)
-- [x] Booking extension with atomic availability check
-- [x] In-app notification system (booking lifecycle events)
-- [x] Rating & review system (post-completion)
-- [x] Shop owner dashboard with analytics & revenue tracking
-- [x] Customer dashboard with active rides & history
-- [x] Mock payment adapter (replaceable with Stripe/Razorpay)
-- [x] Mock SMS/Email/KYC/Maps/IoT adapters (adapter pattern)
-- [x] Payout ledger with 10% commission tracking
-- [x] Database indexes for scalability
-- [x] Architecture blueprint with race condition audit
+- **Backend Services**: Authentication, Marketplace, Booking, Payments, Notifications, Analytics
+- **Database Schema**: Users, BikeShops, Bikes, Bookings, Payments, PayoutLedger, Reviews, Notifications
+- **Operational Features**: Double booking prevention, late return penalties, availability calendar, smart notifications, rating system, bike performance analytics, payout ledger
+- **Integrations**: Mock implementations for Payment, KYC, SMS/Email/Push, Maps, IoT (adapter pattern)
+- **Scalability**: 50K+ users
+- **Mobile**: PWA approach with future native wrapper support
 
-## What's Been Implemented (March 10, 2026)
+## Tech Stack
+- **Backend**: FastAPI, MongoDB (motor), Pydantic, JWT + Google OAuth
+- **Frontend**: React, React Router, TailwindCSS, shadcn/ui, Recharts
+- **Architecture**: Service-Oriented (services layer + adapter pattern), REST APIs, Background Tasks
 
-### Backend (FastAPI + MongoDB)
-- Modular route structure: auth, bikes, bookings, reviews, notifications, analytics
-- 6 mock integration adapters (payment, SMS, email, KYC, maps, IoT)
-- Seed data: 2 shops, 8 bikes across Leh/Nubra Valley
-- MongoDB indexes on all key query patterns
-- Atomic booking operations preventing race conditions
+## What's Been Implemented
 
-### Frontend (React + Shadcn UI + Tailwind)
-- Dark adventure theme (Barlow Condensed + Manrope fonts, yellow/sky accents)
-- Landing page with hero, features, featured bikes
-- Marketplace with search, type/location/sort filters
-- Bike detail with booking calendar (date range picker)
-- Customer dashboard (active rides, history, notifications)
-- Shop dashboard (bike management, bookings, revenue chart)
-- Login/Register with JWT + Google OAuth
-- Responsive design, glassmorphism navbar
+### Phase 1: MVP (Complete)
+- Full-stack MVP with auth, marketplace, booking, reviews
+- Database schema with indexes for 50K+ scale
+- Seed data (2 shops, 8 bikes)
 
-### Testing: 97.8% pass rate (21/22 backend, 100% frontend)
+### Phase 2: Production Refactor (Complete)
+- Service layer: booking_engine, analytics_engine, payout_engine, notification_engine, rating_engine
+- Adapter layer: payment, notification, kyc, maps, iot (all mocked)
+- New routes: payouts, travel_agents, enhanced analytics
+- Background scheduler for overdue bookings + notification reminders
+
+### Phase 3: Frontend Integration (Complete - Feb 2026)
+- Updated api.js with all new endpoint functions
+- TravelAgentDashboard: referral tracking, booking tracking, customer management, earnings analytics, commission ledger
+- ShopDashboard: added Payouts tab (summary, ledger, settlements), enhanced analytics (top performing bike)
+- App.js: added /travel-agent route
+- Navbar: role-conditional navigation (shop_owner → My Shop, travel_agent → Agent Portal)
+- PWA support: manifest.json, service-worker.js, mobile meta tags
+
+### Testing Status (Feb 2026)
+- Backend: 36/36 tests passing (100%)
+- Frontend: All 3 role flows tested (100%)
+- All endpoints verified via comprehensive pytest suite
+
+## API Endpoints
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| /api/auth/register | POST | No | Register user (customer/shop_owner/travel_agent) |
+| /api/auth/login | POST | No | Login with email/password |
+| /api/auth/session | POST | No | OAuth session exchange |
+| /api/auth/me | GET | Yes | Get current user |
+| /api/bikes | GET/POST | No/Yes | List/Create bikes |
+| /api/bikes/{id} | GET/PUT/DELETE | No/Yes/Yes | Bike CRUD |
+| /api/shops | GET/POST | No/Yes | List/Create shops |
+| /api/bookings | GET/POST | Yes | List/Create bookings |
+| /api/bookings/{id}/status | PUT | Yes | Update booking status |
+| /api/bookings/{id}/return | POST | Yes | Return bike |
+| /api/bookings/{id}/extend | POST | Yes | Extend booking |
+| /api/availability/{bike_id} | GET | No | Availability calendar |
+| /api/analytics/shop | GET | Yes | Shop analytics |
+| /api/analytics/bike/{id} | GET | Yes | Bike performance |
+| /api/analytics/platform | GET | Yes | Platform analytics |
+| /api/payouts/summary | GET | Yes | Payout summary |
+| /api/payouts/ledger | GET | Yes | Payout ledger |
+| /api/payouts/settle | POST | Yes | Request settlement |
+| /api/travel-agent/dashboard | GET | Yes | Agent dashboard |
+| /api/travel-agent/generate-link | POST | Yes | Generate referral link |
+| /api/travel-agent/commission-ledger | GET | Yes | Commission ledger |
+| /api/notifications | GET | Yes | List notifications |
+| /api/reviews | POST | Yes | Submit review |
 
 ## Prioritized Backlog
 
-### P0 (Critical - Next Sprint)
-- Travel Agent/Hotel Owner dashboard (referral management, commission tracking)
-- Admin dashboard with full analytics and user management
+### P0 (Next)
+- Admin Dashboard for platform-wide analytics and management
 
-### P1 (High Priority)
-- Booking reminder notifications (24h before pickup, 4h before return)
-- KYC verification flow (real provider integration)
-- Image upload for bikes (object storage integration)
-- Dispute resolution system
+### P1
+- Mobile-responsive optimization and PWA enhancements
+- Enhanced booking flow with payment confirmation screens
 
-### P2 (Medium Priority)
-- Real payment gateway integration (Stripe/Razorpay)
-- SMS/Email notification delivery (Twilio/SendGrid)
-- Map integration for shop locations
-- Mobile-optimized booking flow
-- Push notifications (Firebase)
-
-### P3 (Nice to Have)
-- IoT smart lock integration
-- Route planning with waypoints
-- Price comparison across shops
-- Seasonal pricing engine
-- Multi-language support (Hindi, English)
+### P2
+- Replace mock integrations with real providers (Stripe, SMS, etc.)
+- UI/UX polish and theming refinements
+- React Native / Capacitor wrapper for native app store distribution
