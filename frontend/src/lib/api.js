@@ -45,4 +45,16 @@ export const getCommissionLedger = (page = 1) => api.get('/travel-agent/commissi
 export const getBikeAvailability = (bikeId, month, year) => api.get(`/availability/${bikeId}`, { params: { month, year } });
 export const checkBikeAvailability = (bikeId, startDate, endDate) => api.get(`/availability/${bikeId}/check`, { params: { start_date: startDate, end_date: endDate } });
 
+// Review APIs
+export const submitReview = (bookingId, rating, comment) => api.post('/reviews', { booking_id: bookingId, rating, comment });
+
+// Admin APIs
+export const getAdminDashboard = () => api.get('/admin/dashboard');
+export const getAdminUsers = (params) => api.get('/admin/users', { params });
+export const updateAdminUser = (userId, data) => api.put(`/admin/users/${userId}`, data);
+export const getAdminPayouts = (params) => api.get('/admin/payouts', { params });
+export const adminSettleShop = (shopId) => api.post(`/admin/payouts/${shopId}/settle`);
+export const getAdminKyc = (params) => api.get('/admin/kyc', { params });
+export const reviewKyc = (userId, status, notes) => api.post(`/admin/kyc/${userId}/review`, { status, notes });
+
 export default api;

@@ -9,6 +9,7 @@ from routes.notifications import router as notifications_router
 from routes.analytics import router as analytics_router
 from routes.payouts import router as payouts_router
 from routes.travel_agents import router as travel_agent_router
+from routes.admin import router as admin_router
 from services.booking_engine import scan_overdue_bookings
 from services.notification_engine import scan_and_send_reminders
 import os
@@ -28,6 +29,7 @@ app.include_router(notifications_router)
 app.include_router(analytics_router)
 app.include_router(payouts_router)
 app.include_router(travel_agent_router)
+app.include_router(admin_router)
 
 app.add_middleware(
     CORSMiddleware,

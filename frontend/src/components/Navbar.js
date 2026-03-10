@@ -5,7 +5,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger
 } from '../components/ui/dropdown-menu';
-import { Mountain, User, LogOut, LayoutDashboard, Store, Bell, Compass } from 'lucide-react';
+import { Mountain, User, LogOut, LayoutDashboard, Store, Bell, Compass, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 
@@ -64,6 +64,11 @@ export default function Navbar() {
                 Agent Portal
               </Link>
             )}
+            {user?.role === 'admin' && (
+              <Link to="/admin" className="text-sm font-body text-muted-foreground hover:text-primary transition-colors uppercase tracking-widest" data-testid="nav-admin">
+                Admin
+              </Link>
+            )}
           </div>
 
           {/* Right side */}
@@ -110,6 +115,11 @@ export default function Navbar() {
                       <DropdownMenuItem onClick={() => navigate('/travel-agent')} className="gap-2 cursor-pointer" data-testid="menu-agent">
                         <Compass className="w-4 h-4" strokeWidth={1.5} />
                         Agent Portal
+                      </DropdownMenuItem>
+                    ) : user.role === 'admin' ? (
+                      <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2 cursor-pointer" data-testid="menu-admin">
+                        <Shield className="w-4 h-4" strokeWidth={1.5} />
+                        Admin Panel
                       </DropdownMenuItem>
                     ) : (
                       <DropdownMenuItem onClick={() => navigate('/shop')} className="gap-2 cursor-pointer" data-testid="menu-become-owner">

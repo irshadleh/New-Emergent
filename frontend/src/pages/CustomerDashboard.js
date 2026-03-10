@@ -6,10 +6,12 @@ import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Separator } from '../components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { Textarea } from '../components/ui/textarea';
 import { Bike, Calendar, Bell, Star, Clock, MapPin, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
-import api from '../lib/api';
+import api, { submitReview } from '../lib/api';
 
 function StatusBadge({ status }) {
   const styles = {
@@ -26,10 +28,11 @@ function StatusBadge({ status }) {
   );
 }
 
-function BookingCard({ booking, onAction }) {
+function BookingCard({ booking, onAction, onReview }) {
   const mainImage = booking.bike_images?.[0] || 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?q=80&w=400&auto=format&fit=crop';
   const canCancel = ['confirmed', 'pending'].includes(booking.status);
   const canReturn = ['active', 'confirmed'].includes(booking.status);
+  const canReview = booking.status === 'completed' && !booking.has_review;
 
   return (
     <div className="bg-card border border-border/50 rounded-sm overflow-hidden" data-testid={`booking-${booking.booking_id}`}>
@@ -58,6 +61,11 @@ function BookingCard({ booking, onAction }) {
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
             <span className="text-sm font-bold text-primary">{booking.total_amount?.toLocaleString()} INR</span>
             <div className="flex gap-2">
+              {canReview && (
+                <Button size="sm" className="bg-primary text-primary-foreground text-xs h-7 px-3 rounded-sm" onClick={() => onReview(booking)} data-testid={`review-booking-${booking.booking_id}`}>
+                  <Star className="w-3 h-3 mr-1" /> Rate Ride
+                </Button>
+              )}
               {canCancel && (
                 <Button size="sm" variant="ghost" className="text-destructive text-xs h-7 px-2 rounded-sm" onClick={() => onAction(booking.booking_id, 'cancel')} data-testid={`cancel-booking-${booking.booking_id}`}>
                   <XCircle className="w-3 h-3 mr-1" /> Cancel
@@ -83,6 +91,10 @@ export default function CustomerDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [reviewBooking, setReviewBooking] = useState(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -90,7 +102,21 @@ export default function CustomerDashboard() {
         api.get('/bookings'),
         api.get('/notifications')
       ]);
-      setBookings(bookRes.data.bookings || []);
+      const bookingsList = bookRes.data.bookings || [];
+      // Check which completed bookings already have reviews
+      const reviewChecks = await Promise.all(
+        bookingsList.filter(b => b.status === 'completed').map(b =>
+          api.get(`/reviews/bike/${b.bike_id}`).then(r => {
+            const myReview = (r.data.reviews || []).find(rev => rev.booking_id === b.booking_id);
+            return { booking_id: b.booking_id, has_review: !!myReview };
+          }).catch(() => ({ booking_id: b.booking_id, has_review: false }))
+        )
+      );
+      const reviewMap = {};
+      reviewChecks.forEach(r => { reviewMap[r.booking_id] = r.has_review; });
+      bookingsList.forEach(b => { b.has_review = reviewMap[b.booking_id] || false; });
+
+      setBookings(bookingsList);
       setNotifications(notifRes.data.notifications || []);
       setUnreadCount(notifRes.data.unread_count || 0);
     } catch {}
@@ -126,6 +152,22 @@ export default function CustomerDashboard() {
   const markAllRead = async () => {
     await api.put('/notifications/read-all');
     fetchData();
+  };
+
+  const handleReviewSubmit = async () => {
+    if (!reviewBooking || reviewRating < 1) { toast.error('Please select a rating'); return; }
+    setReviewSubmitting(true);
+    try {
+      await submitReview(reviewBooking.booking_id, reviewRating, reviewComment);
+      toast.success('Review submitted! Thanks for your feedback.');
+      setReviewBooking(null);
+      setReviewRating(0);
+      setReviewComment('');
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to submit review');
+    }
+    setReviewSubmitting(false);
   };
 
   const active = bookings.filter(b => ['confirmed', 'active', 'overdue'].includes(b.status));
@@ -194,7 +236,7 @@ export default function CustomerDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {active.map(b => <BookingCard key={b.booking_id} booking={b} onAction={handleAction} />)}
+                {active.map(b => <BookingCard key={b.booking_id} booking={b} onAction={handleAction} onReview={setReviewBooking} />)}
               </div>
             )}
           </TabsContent>
@@ -207,7 +249,7 @@ export default function CustomerDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {past.map(b => <BookingCard key={b.booking_id} booking={b} onAction={handleAction} />)}
+                {past.map(b => <BookingCard key={b.booking_id} booking={b} onAction={handleAction} onReview={setReviewBooking} />)}
               </div>
             )}
           </TabsContent>
@@ -251,6 +293,53 @@ export default function CustomerDashboard() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Review Dialog */}
+        <Dialog open={!!reviewBooking} onOpenChange={(open) => { if (!open) { setReviewBooking(null); setReviewRating(0); setReviewComment(''); } }}>
+          <DialogContent className="bg-zinc-950 border-zinc-800 rounded-sm max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-heading font-bold uppercase tracking-tight">Rate Your Ride</DialogTitle>
+            </DialogHeader>
+            {reviewBooking && (
+              <div className="space-y-4 mt-2">
+                <div>
+                  <p className="font-bold text-foreground">{reviewBooking.bike_name}</p>
+                  <p className="text-xs text-muted-foreground">{reviewBooking.shop_name} | {format(parseISO(reviewBooking.start_date), 'MMM d')} - {format(parseISO(reviewBooking.end_date), 'MMM d')}</p>
+                </div>
+                <Separator className="bg-border/50" />
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground block mb-2">Rating</label>
+                  <div className="flex gap-1" data-testid="review-stars">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button key={star} onClick={() => setReviewRating(star)} className="p-1 transition-transform hover:scale-110" data-testid={`review-star-${star}`}>
+                        <Star className={`w-7 h-7 ${star <= reviewRating ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground block mb-1">Comment (optional)</label>
+                  <Textarea value={reviewComment} onChange={e => setReviewComment(e.target.value)}
+                    placeholder="Share your experience..."
+                    className="bg-background border-border rounded-none" rows={3} data-testid="review-comment" />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" className="flex-1 text-xs" onClick={() => { setReviewBooking(null); setReviewRating(0); setReviewComment(''); }}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-primary text-primary-foreground font-bold uppercase tracking-wider text-xs rounded-sm"
+                    disabled={reviewRating < 1 || reviewSubmitting}
+                    onClick={handleReviewSubmit}
+                    data-testid="submit-review-btn"
+                  >
+                    {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

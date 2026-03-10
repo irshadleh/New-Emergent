@@ -19,6 +19,7 @@ export default function BikeDetail() {
   const [booking, setBooking] = useState(false);
   const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
   const [selectedImage, setSelectedImage] = useState(0);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     const fetchBike = async () => {
@@ -60,6 +61,11 @@ export default function BikeDetail() {
   const handleBooking = async () => {
     if (!user) { navigate('/login'); return; }
     if (!dateRange.from || !dateRange.to) { toast.error('Select dates'); return; }
+
+    if (!showConfirm) {
+      setShowConfirm(true);
+      return;
+    }
 
     setBooking(true);
     try {
@@ -234,14 +240,41 @@ export default function BikeDetail() {
                 </div>
               )}
 
-              <Button
-                onClick={handleBooking}
-                disabled={!totalDays || booking}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold uppercase tracking-wider rounded-sm h-12"
-                data-testid="book-now-btn"
-              >
-                {booking ? 'Booking...' : !user ? 'Sign In to Book' : totalDays ? `Book for ${calculateTotal().toLocaleString()} INR` : 'Select Dates'}
-              </Button>
+              {showConfirm && totalDays > 0 ? (
+                <div className="space-y-4 p-4 bg-secondary/30 border border-primary/20 rounded-sm" data-testid="booking-confirmation">
+                  <h4 className="font-heading font-bold text-sm uppercase tracking-wider text-primary">Confirm Booking</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Bike</span><span className="font-bold">{bike.name}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Pickup</span><span>{format(dateRange.from, 'MMM d, yyyy')}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Return</span><span>{format(dateRange.to, 'MMM d, yyyy')}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span>{totalDays} day{totalDays > 1 ? 's' : ''}</span></div>
+                    <Separator className="bg-border/50" />
+                    <div className="flex justify-between"><span className="text-muted-foreground">Rate</span><span>{bike.daily_rate} INR/day</span></div>
+                    <div className="flex justify-between font-bold text-base"><span>Total</span><span className="text-primary">{calculateTotal().toLocaleString()} INR</span></div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Payment will be processed via our secure gateway (MOCK). Free cancellation up to 24h before pickup.</p>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" className="flex-1 text-xs" onClick={() => setShowConfirm(false)} data-testid="cancel-confirm-btn">Back</Button>
+                    <Button
+                      onClick={handleBooking}
+                      disabled={booking}
+                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 font-bold uppercase tracking-wider rounded-sm"
+                      data-testid="confirm-booking-btn"
+                    >
+                      {booking ? 'Processing...' : 'Confirm & Pay'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleBooking}
+                  disabled={!totalDays || booking}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold uppercase tracking-wider rounded-sm h-12"
+                  data-testid="book-now-btn"
+                >
+                  {booking ? 'Booking...' : !user ? 'Sign In to Book' : totalDays ? `Book for ${calculateTotal().toLocaleString()} INR` : 'Select Dates'}
+                </Button>
+              )}
 
               <p className="text-[10px] text-muted-foreground text-center">
                 Free cancellation up to 24h before pickup. Late return penalty: 1.5x daily rate.
