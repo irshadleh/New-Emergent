@@ -104,14 +104,14 @@ export default function BikeDetail() {
           {/* Left: Images + Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Main image */}
-            <div className="aspect-[16/9] overflow-hidden bg-card border border-border/50 rounded-sm">
+            <div className="aspect-[16/9] overflow-hidden bg-secondary rounded-xl">
               <img src={bike.images?.[selectedImage] || bike.images?.[0]} alt={bike.name} className="w-full h-full object-cover" />
             </div>
             {bike.images?.length > 1 && (
               <div className="flex gap-2">
                 {bike.images.map((img, i) => (
                   <button key={i} onClick={() => setSelectedImage(i)}
-                    className={`w-20 h-16 overflow-hidden border rounded-sm transition-colors ${i === selectedImage ? 'border-primary' : 'border-border/50 hover:border-white/30'}`}>
+                    className={`w-20 h-16 overflow-hidden border rounded-lg transition-colors ${i === selectedImage ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-foreground/30'}`}>
                     <img src={img} alt="" className="w-full h-full object-cover" />
                   </button>
                 ))}
@@ -122,11 +122,11 @@ export default function BikeDetail() {
             <div>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <Badge variant="secondary" className="rounded-sm text-[10px] uppercase tracking-widest font-bold mb-2">{bike.type}</Badge>
-                  <h1 className="font-heading font-bold text-2xl sm:text-3xl uppercase tracking-tight text-foreground" data-testid="bike-name">{bike.name}</h1>
+                  <Badge variant="secondary" className="rounded-lg text-xs font-semibold mb-2">{bike.type}</Badge>
+                  <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-foreground" data-testid="bike-name">{bike.name}</h1>
                 </div>
                 {bike.rating > 0 && (
-                  <div className="flex items-center gap-1 bg-card border border-border/50 px-3 py-1.5 rounded-sm">
+                  <div className="flex items-center gap-1 bg-secondary px-3 py-1.5 rounded-lg">
                     <Star className="w-4 h-4 fill-primary text-primary" />
                     <span className="font-bold text-sm">{bike.rating}</span>
                     <span className="text-xs text-muted-foreground">({bike.total_reviews})</span>
@@ -146,10 +146,10 @@ export default function BikeDetail() {
               {/* Features */}
               {bike.features?.length > 0 && (
                 <div className="mt-6">
-                  <h3 className="font-heading font-bold text-sm uppercase tracking-wider mb-3">Includes</h3>
+                  <h3 className="font-heading font-bold text-sm mb-3">What's included</h3>
                   <div className="flex flex-wrap gap-2">
                     {bike.features.map((f) => (
-                      <Badge key={f} variant="outline" className="rounded-sm border-border text-xs">
+                      <Badge key={f} variant="outline" className="rounded-lg border-border text-xs">
                         <Shield className="w-3 h-3 mr-1" strokeWidth={1.5} /> {f}
                       </Badge>
                     ))}
@@ -159,8 +159,8 @@ export default function BikeDetail() {
 
               {/* Shop info */}
               {bike.shop_name && (
-                <div className="mt-6 p-4 bg-card border border-border/50 rounded-sm">
-                  <h3 className="font-heading font-bold text-sm uppercase tracking-wider mb-1">Listed by</h3>
+                <div className="mt-6 p-4 bg-secondary/50 border border-border rounded-xl">
+                  <h3 className="font-heading font-bold text-sm mb-1">Listed by</h3>
                   <p className="text-foreground font-body">{bike.shop_name}</p>
                   {bike.shop_details?.address && <p className="text-xs text-muted-foreground mt-1">{bike.shop_details.address}</p>}
                 </div>

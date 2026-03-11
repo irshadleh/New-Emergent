@@ -5,10 +5,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        heading: ['"Barlow Condensed"', 'sans-serif'],
-        body: ['"Manrope"', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
-        accent: ['"Rock Salt"', 'cursive'],
+        heading: ['"Plus Jakarta Sans"', 'sans-serif'],
+        body: ['"Plus Jakarta Sans"', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -52,11 +50,10 @@ module.exports = {
           5: "hsl(var(--chart-5))",
         },
         ladakh: {
-          yellow: '#eab308',
-          sky: '#0ea5e9',
-          peak: '#27272a',
-          rock: '#18181b',
-          void: '#09090b',
+          coral: '#E14D2A',
+          rose: '#FF385C',
+          warm: '#FFF8F0',
+          sand: '#F7F7F7',
         }
       },
       borderRadius: {

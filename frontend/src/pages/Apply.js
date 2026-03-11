@@ -77,17 +77,14 @@ export default function Apply() {
       <div className="max-w-2xl mx-auto px-6 md:px-12 py-8">
         {/* Header */}
         <Link to="/" className="flex items-center gap-2 mb-8 text-muted-foreground hover:text-primary transition-colors">
-          <Mountain className="w-5 h-5" strokeWidth={1.5} />
-          <span className="font-heading font-bold text-sm uppercase tracking-wider">Ladakh Moto</span>
+          <Mountain className="w-5 h-5" strokeWidth={2} />
+          <span className="font-heading font-bold text-sm">Ladakh Moto</span>
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
-          {isShop ? <Store className="w-6 h-6 text-primary" strokeWidth={1.5} /> : <Compass className="w-6 h-6 text-accent" strokeWidth={1.5} />}
-          <p className="uppercase tracking-widest text-xs font-bold text-accent">
-            {isShop ? 'Shop Owner Registration' : 'Travel Agent Registration'}
-          </p>
+          {isShop ? <Store className="w-6 h-6 text-primary" /> : <Compass className="w-6 h-6 text-primary" />}
         </div>
-        <h1 className="font-heading font-bold text-2xl sm:text-3xl uppercase tracking-tight text-foreground mb-2">
+        <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-foreground mb-2">
           {isShop ? 'List Your Bikes on Ladakh Moto' : 'Partner with Ladakh Moto'}
         </h1>
         <p className="text-muted-foreground font-body text-sm mb-8">
@@ -97,7 +94,7 @@ export default function Apply() {
           }
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border/50 rounded-sm p-6 md:p-8" data-testid="application-form">
+        <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border rounded-2xl shadow-sm p-6 md:p-8" data-testid="application-form">
           {/* Personal Info */}
           <div>
             <h3 className="font-heading font-bold text-sm uppercase tracking-wider mb-4">Contact Information</h3>
@@ -106,21 +103,21 @@ export default function Apply() {
                 <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Full Name *</Label>
                 <div className="relative mt-1">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                  <Input name="name" required placeholder="Your full name" className="pl-10 bg-background border-border rounded-none h-11" data-testid="apply-name" />
+                  <Input name="name" required placeholder="Your full name" className="pl-10 bg-background border-border rounded-xl h-11" data-testid="apply-name" />
                 </div>
               </div>
               <div>
                 <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Email *</Label>
                 <div className="relative mt-1">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                  <Input name="email" type="email" required placeholder="you@example.com" className="pl-10 bg-background border-border rounded-none h-11" data-testid="apply-email" />
+                  <Input name="email" type="email" required placeholder="you@example.com" className="pl-10 bg-background border-border rounded-xl h-11" data-testid="apply-email" />
                 </div>
               </div>
               <div className="md:col-span-2">
                 <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Phone Number *</Label>
                 <div className="relative mt-1">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                  <Input name="phone" required placeholder="+91-9876543210" className="pl-10 bg-background border-border rounded-none h-11" data-testid="apply-phone" />
+                  <Input name="phone" required placeholder="+91-9876543210" className="pl-10 bg-background border-border rounded-xl h-11" data-testid="apply-phone" />
                 </div>
               </div>
             </div>
@@ -135,30 +132,30 @@ export default function Apply() {
                   <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Shop Name *</Label>
                   <div className="relative mt-1">
                     <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                    <Input name="shop_name" required placeholder="Himalayan Riders Leh" className="pl-10 bg-background border-border rounded-none h-11" data-testid="apply-shop-name" />
+                    <Input name="shop_name" required placeholder="Himalayan Riders Leh" className="pl-10 bg-background border-border rounded-xl h-11" data-testid="apply-shop-name" />
                   </div>
                 </div>
                 <div className="md:col-span-2">
                   <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Shop Address *</Label>
                   <div className="relative mt-1">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                    <Input name="shop_address" required placeholder="Main Bazaar, Leh, Ladakh" className="pl-10 bg-background border-border rounded-none h-11" data-testid="apply-shop-address" />
+                    <Input name="shop_address" required placeholder="Main Bazaar, Leh, Ladakh" className="pl-10 bg-background border-border rounded-xl h-11" data-testid="apply-shop-address" />
                   </div>
                 </div>
                 <div>
                   <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Total Bikes to List</Label>
                   <div className="relative mt-1">
                     <Bike className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                    <Input name="total_bikes" type="number" min="1" placeholder="10" className="pl-10 bg-background border-border rounded-none h-11" data-testid="apply-total-bikes" />
+                    <Input name="total_bikes" type="number" min="1" placeholder="10" className="pl-10 bg-background border-border rounded-xl h-11" data-testid="apply-total-bikes" />
                   </div>
                 </div>
                 <div>
                   <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Years of Experience</Label>
-                  <Input name="experience_years" type="number" min="0" placeholder="5" className="bg-background border-border rounded-none h-11 mt-1" data-testid="apply-experience" />
+                  <Input name="experience_years" type="number" min="0" placeholder="5" className="bg-background border-border rounded-xl h-11 mt-1" data-testid="apply-experience" />
                 </div>
                 <div className="md:col-span-2">
                   <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Bike Types Available</Label>
-                  <Input name="bike_types" placeholder="Royal Enfield, KTM, Honda..." className="bg-background border-border rounded-none h-11 mt-1" data-testid="apply-bike-types" />
+                  <Input name="bike_types" placeholder="Royal Enfield, KTM, Honda..." className="bg-background border-border rounded-xl h-11 mt-1" data-testid="apply-bike-types" />
                 </div>
               </div>
             </div>
@@ -168,12 +165,12 @@ export default function Apply() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Agency / Hotel Name *</Label>
-                  <Input name="agency_name" required placeholder="Ladakh Adventures Pvt Ltd" className="bg-background border-border rounded-none h-11 mt-1" data-testid="apply-agency-name" />
+                  <Input name="agency_name" required placeholder="Ladakh Adventures Pvt Ltd" className="bg-background border-border rounded-xl h-11 mt-1" data-testid="apply-agency-name" />
                 </div>
                 <div>
                   <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Type</Label>
                   <Select name="agency_type" defaultValue="travel_agency">
-                    <SelectTrigger className="bg-background border-border rounded-none h-11 mt-1" data-testid="apply-agency-type">
+                    <SelectTrigger className="bg-background border-border rounded-xl h-11 mt-1" data-testid="apply-agency-type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-950 border-zinc-800 rounded-sm">
@@ -185,7 +182,7 @@ export default function Apply() {
                 </div>
                 <div>
                   <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Address</Label>
-                  <Input name="agency_address" placeholder="Location" className="bg-background border-border rounded-none h-11 mt-1" data-testid="apply-agency-address" />
+                  <Input name="agency_address" placeholder="Location" className="bg-background border-border rounded-xl h-11 mt-1" data-testid="apply-agency-address" />
                 </div>
               </div>
             </div>
@@ -196,10 +193,10 @@ export default function Apply() {
             <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
               {isShop ? 'Tell us about your shop' : 'Tell us about your business'}
             </Label>
-            <Textarea name="description" placeholder={isShop ? 'What makes your shop unique? What services do you offer riders?' : 'Describe your agency/hotel and how you plan to refer customers...'} className="bg-background border-border rounded-none mt-1" rows={3} data-testid="apply-description" />
+            <Textarea name="description" placeholder={isShop ? 'What makes your shop unique? What services do you offer riders?' : 'Describe your agency/hotel and how you plan to refer customers...'} className="bg-background border-border rounded-xl mt-1" rows={3} data-testid="apply-description" />
           </div>
 
-          <Button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold uppercase tracking-wider rounded-sm h-12" data-testid="apply-submit-btn">
+          <Button type="submit" disabled={loading} className="w-full bg-primary text-white hover:bg-primary/90 font-bold rounded-xl h-12 text-sm" data-testid="apply-submit-btn">
             {loading ? 'Submitting...' : 'Submit Application'}
           </Button>
 

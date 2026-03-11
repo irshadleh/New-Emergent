@@ -1,159 +1,131 @@
 import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Badge } from '../components/ui/badge';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
-import BikeCard from '../components/BikeCard';
+import { Search, Star, MapPin, SlidersHorizontal } from 'lucide-react';
 import api from '../lib/api';
+
+function BikeCard({ bike }) {
+  const mainImage = bike.images?.[0] || 'https://images.unsplash.com/photo-1630693147522-1169cad4986e?q=80&w=600&auto=format&fit=crop';
+  return (
+    <Link to={`/bikes/${bike.bike_id}`} className="group block" data-testid={`marketplace-bike-${bike.bike_id}`}>
+      <div className="aspect-[4/3] rounded-xl overflow-hidden mb-3 bg-secondary">
+        <img src={mainImage} alt={bike.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+      </div>
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <h3 className="font-heading font-bold text-[15px] text-foreground truncate">{bike.name}</h3>
+          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+            <MapPin className="w-3.5 h-3.5 flex-shrink-0" /> {bike.shop_name || 'Leh, Ladakh'}
+          </p>
+        </div>
+        {bike.average_rating > 0 && (
+          <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+            <Star className="w-3.5 h-3.5 fill-foreground text-foreground" />
+            <span className="text-sm font-medium">{bike.average_rating?.toFixed(1)}</span>
+          </div>
+        )}
+      </div>
+      <p className="mt-1 text-[15px]">
+        <span className="font-bold">{bike.daily_rate?.toLocaleString()} INR</span>
+        <span className="text-muted-foreground font-normal"> / day</span>
+      </p>
+    </Link>
+  );
+}
 
 export default function Marketplace() {
   const [bikes, setBikes] = useState([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [locationFilter, setLocationFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('default');
-  const [page, setPage] = useState(1);
+  const [bikeType, setBikeType] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
 
   useEffect(() => {
     const fetchBikes = async () => {
-      setLoading(true);
       try {
-        const params = new URLSearchParams();
-        if (search) params.set('search', search);
-        if (typeFilter !== 'all') params.set('type', typeFilter);
-        if (locationFilter !== 'all') params.set('location', locationFilter);
-        params.set('page', page);
-        params.set('limit', 12);
-
-        const res = await api.get(`/bikes?${params.toString()}`);
-        let bikeList = res.data.bikes || [];
-
-        if (sortBy === 'price_low') bikeList.sort((a, b) => a.daily_rate - b.daily_rate);
-        if (sortBy === 'price_high') bikeList.sort((a, b) => b.daily_rate - a.daily_rate);
-        if (sortBy === 'rating') bikeList.sort((a, b) => b.rating - a.rating);
-
-        setBikes(bikeList);
-        setTotal(res.data.total || 0);
+        const params = {};
+        if (search) params.search = search;
+        if (bikeType !== 'all') params.bike_type = bikeType;
+        if (sortBy) params.sort_by = sortBy;
+        const res = await api.get('/bikes', { params });
+        setBikes(res.data.bikes || []);
       } catch {}
       setLoading(false);
     };
     fetchBikes();
-  }, [search, typeFilter, locationFilter, sortBy, page]);
-
-  const clearFilters = () => {
-    setSearch('');
-    setTypeFilter('all');
-    setLocationFilter('all');
-    setSortBy('default');
-    setPage(1);
-  };
-
-  const hasFilters = search || typeFilter !== 'all' || locationFilter !== 'all';
+  }, [search, bikeType, sortBy]);
 
   return (
     <div className="min-h-screen bg-background pt-20" data-testid="marketplace-page">
-      {/* Header */}
-      <div className="px-6 md:px-12 lg:px-24 pt-8 pb-4 max-w-7xl mx-auto">
-        <p className="uppercase tracking-widest text-xs font-bold text-accent mb-2">Marketplace</p>
-        <div className="flex items-end justify-between">
-          <h1 className="font-heading font-bold text-3xl sm:text-4xl uppercase tracking-tight text-foreground">
-            Find Your Ride
+      <div className="max-w-7xl mx-auto px-6 md:px-12 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="font-heading font-extrabold text-3xl text-foreground">
+            Explore bikes in Ladakh
           </h1>
-          <span className="text-sm text-muted-foreground font-body">{total} bikes available</span>
+          <p className="text-muted-foreground mt-1 text-sm">Find the perfect ride for your Himalayan adventure</p>
         </div>
-      </div>
 
-      {/* Filters */}
-      <div className="px-6 md:px-12 lg:px-24 py-6 max-w-7xl mx-auto" data-testid="marketplace-filters">
-        <div className="flex flex-col md:flex-row gap-3">
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-3 mb-8 p-4 bg-secondary/50 rounded-xl border border-border" data-testid="marketplace-filters">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search bikes, brands..."
-              className="pl-10 bg-background border-border rounded-none h-11"
-              data-testid="marketplace-search"
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, type..."
+              className="pl-10 rounded-xl h-11 border-border bg-background"
+              data-testid="search-input"
             />
           </div>
-
-          <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-full md:w-44 bg-background border-border rounded-none h-11" data-testid="filter-type">
-              <SlidersHorizontal className="w-3.5 h-3.5 mr-2" strokeWidth={1.5} />
-              <SelectValue placeholder="Type" />
+          <Select value={bikeType} onValueChange={setBikeType}>
+            <SelectTrigger className="w-full md:w-44 rounded-xl h-11 border-border bg-background" data-testid="type-filter">
+              <SlidersHorizontal className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="All Types" />
             </SelectTrigger>
-            <SelectContent className="bg-zinc-950 border-zinc-800 rounded-sm">
+            <SelectContent className="bg-background border-border rounded-xl shadow-lg">
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="adventure">Adventure</SelectItem>
               <SelectItem value="cruiser">Cruiser</SelectItem>
+              <SelectItem value="adventure">Adventure</SelectItem>
               <SelectItem value="sport">Sport</SelectItem>
+              <SelectItem value="standard">Standard</SelectItem>
               <SelectItem value="scooter">Scooter</SelectItem>
             </SelectContent>
           </Select>
-
-          <Select value={locationFilter} onValueChange={(v) => { setLocationFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-full md:w-44 bg-background border-border rounded-none h-11" data-testid="filter-location">
-              <SelectValue placeholder="Location" />
-            </SelectTrigger>
-            <SelectContent className="bg-zinc-950 border-zinc-800 rounded-sm">
-              <SelectItem value="all">All Locations</SelectItem>
-              <SelectItem value="Leh">Leh</SelectItem>
-              <SelectItem value="Nubra">Nubra Valley</SelectItem>
-              <SelectItem value="Pangong">Pangong</SelectItem>
-            </SelectContent>
-          </Select>
-
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full md:w-44 bg-background border-border rounded-none h-11" data-testid="filter-sort">
+            <SelectTrigger className="w-full md:w-44 rounded-xl h-11 border-border bg-background" data-testid="sort-filter">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
-            <SelectContent className="bg-zinc-950 border-zinc-800 rounded-sm">
-              <SelectItem value="default">Default</SelectItem>
+            <SelectContent className="bg-background border-border rounded-xl shadow-lg">
+              <SelectItem value="name">Name</SelectItem>
               <SelectItem value="price_low">Price: Low to High</SelectItem>
               <SelectItem value="price_high">Price: High to Low</SelectItem>
-              <SelectItem value="rating">Highest Rated</SelectItem>
+              <SelectItem value="rating">Rating</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {hasFilters && (
-          <div className="flex items-center gap-2 mt-3">
-            <span className="text-xs text-muted-foreground">Active filters:</span>
-            {search && <Badge variant="secondary" className="rounded-sm text-xs">{search} <X className="w-3 h-3 ml-1 cursor-pointer" onClick={() => setSearch('')} /></Badge>}
-            {typeFilter !== 'all' && <Badge variant="secondary" className="rounded-sm text-xs capitalize">{typeFilter} <X className="w-3 h-3 ml-1 cursor-pointer" onClick={() => setTypeFilter('all')} /></Badge>}
-            {locationFilter !== 'all' && <Badge variant="secondary" className="rounded-sm text-xs">{locationFilter} <X className="w-3 h-3 ml-1 cursor-pointer" onClick={() => setLocationFilter('all')} /></Badge>}
-            <button onClick={clearFilters} className="text-xs text-destructive hover:text-destructive/80 ml-2">Clear all</button>
-          </div>
-        )}
-      </div>
-
-      {/* Grid */}
-      <div className="px-6 md:px-12 lg:px-24 pb-24 max-w-7xl mx-auto">
+        {/* Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border/50 rounded-sm animate-pulse">
-                <div className="aspect-[4/3] bg-secondary" />
-                <div className="p-4 space-y-3">
-                  <div className="h-5 bg-secondary rounded w-3/4" />
-                  <div className="h-3 bg-secondary rounded w-1/2" />
-                  <div className="h-8 bg-secondary rounded w-1/3 mt-3" />
-                </div>
+              <div key={i} className="animate-pulse">
+                <div className="aspect-[4/3] rounded-xl bg-secondary mb-3" />
+                <div className="h-4 bg-secondary rounded w-2/3 mb-2" />
+                <div className="h-3 bg-secondary rounded w-1/2" />
               </div>
             ))}
           </div>
         ) : bikes.length === 0 ? (
-          <div className="text-center py-24">
-            <p className="text-muted-foreground font-body">No bikes found matching your criteria.</p>
-            <button onClick={clearFilters} className="text-primary text-sm mt-2 hover:text-primary/80">Clear filters</button>
+          <div className="text-center py-20">
+            <p className="text-xl font-heading font-bold text-foreground">No bikes found</p>
+            <p className="text-muted-foreground mt-2 text-sm">Try adjusting your search or filters</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-testid="bikes-grid">
-            {bikes.map((bike) => (
-              <BikeCard key={bike.bike_id} bike={bike} />
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" data-testid="bike-grid">
+            {bikes.map(bike => <BikeCard key={bike.bike_id} bike={bike} />)}
           </div>
         )}
       </div>
