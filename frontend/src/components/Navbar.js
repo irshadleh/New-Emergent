@@ -32,6 +32,9 @@ export default function Navbar() {
           <Link to="/marketplace" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="nav-bikes">
             Explore
           </Link>
+          <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="nav-about">
+            About
+          </Link>
           {user?.role === 'shop_owner' && (
             <Link to="/shop" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="nav-shop">
               My Shop

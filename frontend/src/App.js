@@ -14,6 +14,7 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import ShopDashboard from "./pages/ShopDashboard";
 import TravelAgentDashboard from "./pages/TravelAgentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import About from "./pages/About";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -48,6 +49,7 @@ function AppRouter() {
         <Route path="/apply" element={<Apply />} />
         <Route path="/marketplace" element={<Marketplace />} />
         <Route path="/bikes/:id" element={<BikeDetail />} />
+        <Route path="/about" element={<About />} />
         <Route path="/dashboard" element={
           <ProtectedRoute><CustomerDashboard /></ProtectedRoute>
         } />
